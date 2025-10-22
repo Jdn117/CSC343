@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
+
+pthread_mutex_t lock;
+int sharedData = 0;
+int dataReady = 0;
+
+void* writerThread(void* arg) {
+    for (int i = 1; i <= 5; i++) {
+        pthread_mutex_lock(&lock);
+        sharedData = i * 10;
+        dataReady = 1;
+        printf("Writer: wrote %d\n", sharedData);
+        pthread_mutex_unlock(&lock);
+        sleep(1);
+    }
+    return NULL;
+}
+
+void* readerThread(void* arg) {
+    int lastRead = -1;
+    while (1) {
+        pthread_mutex_lock(&lock);
+        if (dataReady && sharedData != lastRead) {
+            printf("Reader: read %d\n", sharedData);
+            lastRead = sharedData;
+            dataReady = 0;
+        }
+        pthread_mutex_unlock(&lock);
+        usleep(100000); // small delay
+        if (lastRead >= 50) break;
+    }
+    return NULL;
+}
+
+int main() {
+    pthread_t t1, t2;
+    pthread_mutex_init(&lock, NULL);
+
+    pthread_create(&t1, NULL, writerThread, NULL);
+    pthread_create(&t2, NULL, readerThread, NULL);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+
+    pthread_mutex_destroy(&lock);
+    return 0;
+}
